@@ -1,0 +1,1197 @@
+﻿<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Study Dost - Padhai ka Sathi</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script> <style>
+      :root {
+          --primary-color: #667eea; /* Indigo */
+          --secondary-color: #764ba2; /* Purple */
+          --accent-color: #f59e0b; /* Amber for highlights */
+          --text-light: #f9fafb;
+          --text-dark: #1f2937;
+          --bg-light: #f9fafb;
+          --bg-dark: #111827;
+          --card-bg-light: #ffffff;
+          --card-bg-dark: #1f2937;
+          --border-light: #e5e7eb;
+          --border-dark: #374151;
+          --drawer-bg-light: #ffffff;
+          --drawer-bg-dark: #1f2937;
+      }
+
+      body {
+          font-family: 'Poppins', sans-serif;
+          transition: background-color 0.5s ease, color 0.5s ease;
+          overscroll-behavior-y: contain;
+          margin: 0;
+      }
+
+      .light-mode { background-color: var(--bg-light); color: var(--text-dark); }
+      .dark-mode { background-color: var(--bg-dark); color: var(--text-light); }
+
+      .wipe-overlay {
+          position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+          z-index: 99999; transform: scaleX(0); transform-origin: left;
+          transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+      }
+      .light-mode .wipe-overlay.to-dark { background-color: var(--bg-dark); }
+      .dark-mode .wipe-overlay.to-light { background-color: var(--bg-light); }
+      .wipe-overlay.active { transform: scaleX(1); }
+
+      .container-main {
+          max-width: 700px; margin: 0 auto; padding: 15px; padding-top: 70px; /* Adjusted for new top bar height potentially */
+          min-height: calc(100vh - 70px); display: flex; flex-direction: column;
+      }
+
+      .app-card {
+          background-color: var(--card-bg-light); border: 1px solid var(--border-light);
+          backdrop-filter: blur(10px); border-radius: 20px;
+          box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+          transition: background-color 0.5s ease, border-color 0.5s ease;
+          padding: 20px;
+      }
+      .dark-mode .app-card { background-color: var(--card-bg-dark); border-color: var(--border-dark); }
+
+      .header-icon { font-size: 2rem; margin-right: 10px; animation: bounceIcon 2s infinite ease-in-out; }
+      .light-mode .header-icon { color: var(--primary-color); }
+      .dark-mode .header-icon { color: var(--accent-color); }
+      @keyframes bounceIcon { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-5px) scale(1.1); } }
+
+      .app-title { font-size: 1.8rem; font-weight: 700; }
+      .light-mode .app-title { color: var(--primary-color); }
+      .dark-mode .app-title { color: var(--text-light); }
+      .tagline { font-size: 0.8rem; font-weight: 500; margin-top: -5px; }
+      .light-mode .tagline { color: var(--secondary-color); }
+      .dark-mode .tagline { color: var(--accent-color); }
+
+      .top-bar {
+          position: fixed; top: 0; left: 0; right: 0;
+          display: flex; justify-content: space-between; align-items: center;
+          padding: 10px 15px; z-index: 1000;
+          transition: background-color 0.5s ease;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          height: 60px; /* Standard height for top bar */
+      }
+      .light-mode .top-bar { background-color: rgba(255,255,255,0.8); backdrop-filter: blur(5px); }
+      .dark-mode .top-bar { background-color: rgba(17,24,39,0.8); backdrop-filter: blur(5px); }
+      
+      .top-bar-left-icons { display: flex; gap: 10px; align-items: center;}
+      .top-bar-center { flex-grow: 1; display: flex; justify-content: center; padding: 0 10px; }
+      .search-bar-wrapper { 
+          position: relative; 
+          width: 100%; 
+          max-width: 400px; /* Max width for search bar */
+      }
+      #searchInput {
+          width: 100%;
+          padding: 8px 12px 8px 35px; /* Padding for icon */
+          border-radius: 20px;
+          border: 1px solid var(--border-light);
+          font-size: 0.9em;
+          transition: all 0.3s ease;
+      }
+      .light-mode #searchInput { background-color: #fff; color: var(--text-dark); border-color: var(--border-light); }
+      .dark-mode #searchInput { background-color: var(--card-bg-dark); color: var(--text-light); border-color: var(--border-dark); }
+      #searchInput:focus {
+          border-color: var(--accent-color);
+          box-shadow: 0 0 0 2px var(--accent-color-translucent, rgba(245, 158, 11, 0.3)); /* Fallback if var not set */
+      }
+      .search-icon-abs {
+          position: absolute;
+          left: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          font-size: 1em;
+      }
+      .light-mode .search-icon-abs { color: var(--primary-color); }
+      .dark-mode .search-icon-abs { color: var(--accent-color); }
+
+
+      .icon-button {
+          background: none; border: none; font-size: 1.5rem; cursor: pointer;
+          transition: transform 0.2s ease, color 0.3s ease; padding: 5px;
+      }
+      .icon-button:hover { transform: scale(1.15); }
+      .light-mode .icon-button { color: var(--primary-color); }
+      .dark-mode .icon-button { color: var(--accent-color); }
+      .top-bar-right-icons { display: flex; gap: 10px; }
+
+      .drawer {
+          position: fixed; top: 0; left: -300px;
+          width: 280px; height: 100%;
+          box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+          transition: left 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+          z-index: 1001; display: flex; flex-direction: column;
+      }
+      .light-mode .drawer { background-color: var(--drawer-bg-light); }
+      .dark-mode .drawer { background-color: var(--drawer-bg-dark); }
+      .drawer.open { left: 0; }
+      .drawer-header { padding: 20px; border-bottom: 1px solid; text-align: center; }
+      .light-mode .drawer-header { border-color: var(--border-light); }
+      .dark-mode .drawer-header { border-color: var(--border-dark); }
+      .drawer-header .app-title { font-size: 1.5rem; }
+      .drawer-overlay {
+          position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+          background-color: rgba(0,0,0,0.4); z-index: 1000;
+          opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease;
+      }
+      .drawer-overlay.open { opacity: 1; visibility: visible; }
+      .drawer-menu { list-style: none; padding: 0; margin: 0; flex-grow: 1; }
+      .drawer-menu li a, .drawer-menu li button {
+          display: flex; align-items: center; padding: 15px 20px;
+          text-decoration: none; font-size: 1em; font-weight: 500;
+          border: none; background: none; width: 100%; text-align: left; cursor: pointer;
+          transition: background-color 0.2s ease;
+      }
+      .light-mode .drawer-menu li a, .light-mode .drawer-menu li button { color: var(--text-dark); }
+      .dark-mode .drawer-menu li a, .dark-mode .drawer-menu li button { color: var(--text-light); }
+      .light-mode .drawer-menu li a:hover, .light-mode .drawer-menu li button:hover { background-color: #f0f0f0; }
+      .dark-mode .drawer-menu li a:hover, .dark-mode .drawer-menu li button:hover { background-color: #2c3e50; }
+      .drawer-menu li i { margin-right: 15px; width: 20px; text-align: center; }
+      .drawer-footer { padding: 15px; text-align: center; font-size: 0.8em; border-top: 1px solid; }
+      .light-mode .drawer-footer { border-color: var(--border-light); color: var(--text-dark); }
+      .dark-mode .drawer-footer { border-color: var(--border-dark); color: var(--text-light); }
+
+      .custom-select-wrapper { position: relative; margin-bottom: 20px; }
+      .custom-select-label { display: flex; align-items: center; margin-bottom: 8px; font-weight: 600; font-size: 0.95em; }
+      .light-mode .custom-select-label { color: var(--text-dark); } .dark-mode .custom-select-label { color: var(--text-light); }
+      .custom-select-label i { margin-right: 8px; font-size: 1.1em; }
+      .light-mode .custom-select-label i { color: var(--primary-color); } .dark-mode .custom-select-label i { color: var(--accent-color); }
+      .custom-select-trigger { width: 100%; padding: 12px 14px; border-radius: 10px; border: 2px solid; box-sizing: border-box; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.3s ease; font-size: 0.9em; }
+      .light-mode .custom-select-trigger { background-color: var(--card-bg-light); border-color: var(--border-light); color: var(--text-dark); }
+      .dark-mode .custom-select-trigger { background-color: var(--card-bg-dark); border-color: var(--border-dark); color: var(--text-light); }
+      .custom-select-trigger:hover { border-color: var(--accent-color); }
+      .custom-select-trigger.disabled { opacity: 0.6; cursor: not-allowed; }
+      .custom-options { position: absolute; top: 100%; left: 0; right: 0; border-top: none; border-radius: 0 0 10px 10px; max-height: 200px; overflow-y: auto; z-index: 100; opacity: 0; visibility: hidden; transform: translateY(-10px) scaleY(0.9); transform-origin: top; transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease; box-shadow: 0 8px 16px rgba(0,0,0,0.1); }
+      .light-mode .custom-options { background-color: var(--card-bg-light); border: 1px solid var(--border-light); }
+      .dark-mode .custom-options { background-color: #2c3e50; border: 1px solid var(--border-dark); }
+      .custom-options.open { opacity: 1; visibility: visible; transform: translateY(0) scaleY(1); }
+      .custom-option { padding: 12px 14px; cursor: pointer; transition: background-color 0.2s ease; font-size: 0.9em; }
+      .light-mode .custom-option:hover { background-color: #f0f0f0; } .dark-mode .custom-option:hover { background-color: #34495e; }
+      .light-mode .custom-option.selected { background-color: #e0e7ff; font-weight: 600; } .dark-mode .custom-option.selected { background-color: #4a5568; font-weight: 600; }
+
+      #outputContainer { margin-top: 20px; padding: 15px; border-radius: 12px; text-align: center; min-height: 60px; display: flex; flex-direction: column; justify-content: center; align-items: center; transition: all 0.3s ease; font-size: 0.95em; }
+      .light-mode #outputContainer.initial { background-color: #e0e7ff; border: 2px dashed #a3bffa; color: #4338ca;} .dark-mode #outputContainer.initial { background-color: #2c3e50; border: 2px dashed #525296; color: #c7d2fe;}
+      .light-mode #outputContainer.loading { background-color: #fff3cd; border-color: #ffeeba; color: #856404; } .dark-mode #outputContainer.loading { background-color: #423c1d; border-color: #a08d3d; color: #fde68a; }
+      .light-mode #outputContainer.success { background-color: #d1e7dd; border-color: #badbcc; color: #0f5132; } .dark-mode #outputContainer.success { background-color: #153827; border-color: #2f6c4f; color: #a7f3d0; }
+      .pdf-link-button, .gemini-action-button { display: inline-flex; align-items: center; justify-content: center; padding: 10px 15px; color: white; text-decoration: none; border-radius: 8px; font-size: 0.9em; font-weight: 600; transition: background-color 0.3s ease, transform 0.2s ease; margin-top: 10px; border: none; cursor: pointer; }
+      .pdf-link-button i, .gemini-action-button i { margin-right: 6px; }
+      .light-mode .pdf-link-button { background-color: var(--primary-color); } .dark-mode .pdf-link-button { background-color: var(--accent-color); }
+      .pdf-link-button:hover { transform: translateY(-2px) scale(1.05); }
+      .light-mode .pdf-link-button:hover { background-color: #5a67d8; } .dark-mode .pdf-link-button:hover { background-color: #d97706; }
+      .light-mode .gemini-action-button { background-color: var(--secondary-color); } .dark-mode .gemini-action-button { background-color: #8b5cf6; }
+      .gemini-action-button:hover { transform: translateY(-2px) scale(1.05); }
+      .light-mode .gemini-action-button:hover { background-color: #6d28d9; } .dark-mode .gemini-action-button:hover { background-color: #7c3aed; }
+      #geminiActionsContainer { margin-top: 15px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+      #geminiResponseArea { margin-top: 20px; padding: 15px; border-radius: 12px; text-align: left; font-size: 0.9em; width: 100%; box-sizing: border-box; white-space: pre-wrap; max-height: 350px; overflow-y: auto; line-height: 1.6; }
+      .light-mode #geminiResponseArea { background-color: #f3e8ff; border: 1px solid #c084fc; color: #581c87; } .dark-mode #geminiResponseArea { background-color: #3730a3; border: 1px solid #6d28d9; color: var(--text-light); }
+      .light-mode #geminiResponseArea.loading-gemini { background-color: #eef2ff; border-color: #a5b4fc; color: #3730a3; } .dark-mode #geminiResponseArea.loading-gemini { background-color: #2d3748; border-color: #4a5568; color: var(--text-light); }
+      #askGeminiContainer { margin-top: 15px; opacity: 0; max-height: 0; overflow: hidden; transition: opacity 0.5s ease, max-height 0.5s ease; }
+      #askGeminiContainer.visible { opacity: 1; max-height: 200px; }
+      #geminiQuestionInput { width: 100%; padding: 12px; border-radius: 8px; border: 2px solid; margin-bottom: 10px; box-sizing: border-box; font-size: 0.9em; }
+      .light-mode #geminiQuestionInput { border-color: var(--border-light); background-color: var(--card-bg-light); color: var(--text-dark); }
+      .dark-mode #geminiQuestionInput { border-color: var(--border-dark); background-color: var(--card-bg-dark); color: var(--text-light); }
+
+      .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 10000; opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; padding: 15px; }
+      .modal.active { opacity: 1; visibility: visible; }
+      .modal-content { padding: 25px; border-radius: 15px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.2); width: 100%; max-width: 400px; animation: modalOpen 0.3s ease-out; max-height: 90vh; overflow-y: auto;}
+      .light-mode .modal-content { background-color: var(--card-bg-light); color: var(--text-dark); }
+      .dark-mode .modal-content { background-color: var(--card-bg-dark); color: var(--text-light); }
+      @keyframes modalOpen { from { transform: translateY(-20px) scale(0.95); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+      .modal-content h3 { font-size: 1.3em; margin-bottom: 15px; font-weight: 600; }
+      .modal-content p { font-size: 0.95em; margin-bottom: 20px; }
+      .modal-input { width: 100%; padding: 10px; border-radius: 8px; border: 2px solid; margin-bottom: 15px; box-sizing: border-box; font-size: 0.9em; }
+      .light-mode .modal-input { border-color: var(--border-light); background-color: var(--bg-light); color: var(--text-dark); }
+      .dark-mode .modal-input { border-color: var(--border-dark); background-color: var(--bg-dark); color: var(--text-light); }
+      .modal-button { padding: 10px 18px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 0.95em; transition: background-color 0.2s ease; }
+      .light-mode .modal-button.primary { background-color: var(--primary-color); color: white; } .dark-mode .modal-button.primary { background-color: var(--accent-color); color: var(--text-dark); }
+      .light-mode .modal-button.secondary { background-color: #e5e7eb; color: var(--text-dark); margin-left: 10px; } .dark-mode .modal-button.secondary { background-color: #374151; color: var(--text-light); margin-left: 10px; }
+      .modal-error { color: #ef4444; font-size: 0.85em; margin-top: -10px; margin-bottom: 10px; }
+      
+      /* Search Results Modal Specific Styles */
+      #searchResultsModal .modal-content { max-width: 600px; } /* Wider modal for results */
+      #searchResultsContainer { text-align: left; max-height: 60vh; overflow-y: auto; }
+      .search-result-item { padding: 10px; border-bottom: 1px solid var(--border-light); transition: background-color 0.2s ease; cursor: pointer; }
+      .dark-mode .search-result-item { border-color: var(--border-dark); }
+      .light-mode .search-result-item:hover { background-color: #f0f0f0; }
+      .dark-mode .search-result-item:hover { background-color: #2c3e50; }
+      .search-result-item:last-child { border-bottom: none; }
+      .search-result-item h4 { font-weight: 600; margin-bottom: 3px; }
+      .light-mode .search-result-item h4 { color: var(--primary-color); }
+      .dark-mode .search-result-item h4 { color: var(--accent-color); }
+      .search-result-item p { font-size: 0.85em; margin-bottom: 5px; }
+      .light-mode .search-result-item p { color: #4b5563; }
+      .dark-mode .search-result-item p { color: #9ca3af; }
+      .search-result-item .pdf-link-search { font-size: 0.8em; text-decoration: underline; }
+
+
+      #developerLinkListContainer { max-height: 300px; overflow-y: auto; text-align: left; margin-top: 10px; }
+      .developer-link-item { padding: 8px 0; border-bottom: 1px solid; display: flex; justify-content: space-between; align-items: center; }
+      .light-mode .developer-link-item { border-color: var(--border-light); } .dark-mode .developer-link-item { border-color: var(--border-dark); }
+      .developer-link-item:last-child { border-bottom: none; }
+      .developer-link-item span { font-size: 0.85em; word-break: break-all; padding-right: 10px; flex-grow: 1; }
+      .developer-link-item .open-link-btn { padding: 5px 10px; font-size: 0.8em; white-space: nowrap; }
+
+
+      #burnOverlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: transparent; z-index: 99998; pointer-events: none; display: none; overflow: hidden; }
+      .flame {
+          position: absolute;
+          background-image: radial-gradient(circle, rgba(255,204,0,0.8) 20%, rgba(255,102,0,0.7) 50%, rgba(204,0,0,0.6) 90%, transparent 100%);
+          border-radius: 50%;
+          animation: burnEffect 2.5s forwards;
+          transform-origin: center center;
+      }
+      @keyframes burnEffect {
+          0% { width: 0; height: 0; opacity: 0.9; transform: translate(-50%, -50%) scale(0); }
+          20% { opacity: 0.8; }
+          100% { width: 300vmax; height: 300vmax; opacity: 0; transform: translate(-50%, -50%) scale(1); }
+      }
+
+      .spinner {
+          border: 3px solid rgba(0,0,0,0.1);
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          border-left-color: var(--primary-color);
+          animation: spin 1s ease infinite;
+          margin: 10px auto;
+      }
+      .dark-mode .spinner { border-left-color: var(--accent-color); }
+      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+  </style>
+</head>
+<body class="light-mode">
+  <div class="wipe-overlay"></div>
+  <div id="burnOverlay"></div>
+
+  <div class="top-bar">
+      <div class="top-bar-left-icons">
+          <button id="menuButton" class="icon-button" aria-label="Open Menu"><i class="fas fa-bars"></i></button>
+          <button id="homeButton" class="icon-button" aria-label="Home"><i class="fas fa-home"></i></button>
+      </div>
+      <div class="top-bar-center">
+          <div class="search-bar-wrapper">
+              <i class="fas fa-search search-icon-abs"></i>
+              <input type="text" id="searchInput" placeholder="किताब या अध्याय खोजें...">
+          </div>
+      </div>
+      <div class="top-bar-right-icons">
+          <button id="darkModeToggle" class="icon-button" aria-label="Toggle Dark Mode"><i class="fas fa-moon"></i></button>
+          <button id="loginButton" class="icon-button" aria-label="Login"><i class="fas fa-user-circle"></i></button> 
+          <button id="burnPageButton" class="icon-button" aria-label="Burn This Page"><i class="fas fa-fire"></i></button>
+      </div>
+  </div>
+
+  <div id="drawerMenu" class="drawer">
+      <div class="drawer-header">
+          <h2 class="app-title">Study Dost</h2>
+      </div>
+      <ul class="drawer-menu">
+          <li><button id="drawerChooseClass"><i class="fas fa-graduation-cap"></i>Choose Your Class</button></li>
+          <li><button id="drawerDevFamily"><i class="fas fa-users-cog"></i>Join Developer Family</button></li>
+      </ul>
+      <div class="drawer-footer">
+          <p>Developed by Badal</p>
+      </div>
+  </div>
+  <div id="drawerMenuOverlay" class="drawer-overlay"></div>
+
+  <div class="container-main">
+      <div class="app-card">
+          <header class="flex items-center justify-center mb-6">
+              <i class="fas fa-brain header-icon"></i>
+              <div>
+                  <h1 class="app-title">Study Dost</h1>
+                  <p class="tagline">Aapka Padhai ka AI Sathi!</p>
+              </div>
+          </header>
+
+          <div id="mainContentArea">
+              <div class="custom-select-wrapper">
+                  <label for="classSelectNative" class="custom-select-label"><i class="fas fa-graduation-cap"></i>कक्षा चुनें:</label>
+                  <div class="custom-select-trigger" data-target="classSelectNative" tabindex="0"><span>--कक्षा--</span> <i class="fas fa-chevron-down"></i></div>
+                  <select id="classSelectNative" class="hidden"><option value="">--कक्षा--</option></select>
+                  <div class="custom-options"></div>
+              </div>
+              <div class="custom-select-wrapper" id="streamGroupWrapper" style="display: none;">
+                  <label for="streamSelectNative" class="custom-select-label"><i class="fas fa-stream"></i>स्ट्रीम चुनें:</label>
+                  <div class="custom-select-trigger disabled" data-target="streamSelectNative" tabindex="0"><span>--स्ट्रीम--</span> <i class="fas fa-chevron-down"></i></div>
+                  <select id="streamSelectNative" class="hidden"><option value="">--स्ट्रीम--</option></select>
+                  <div class="custom-options"></div>
+              </div>
+              <div class="custom-select-wrapper">
+                  <label for="subjectSelectNative" class="custom-select-label"><i class="fas fa-journal-whills"></i>विषय चुनें:</label>
+                  <div class="custom-select-trigger disabled" data-target="subjectSelectNative" tabindex="0"><span>--विषय--</span> <i class="fas fa-chevron-down"></i></div>
+                  <select id="subjectSelectNative" class="hidden"><option value="">--विषय--</option></select>
+                  <div class="custom-options"></div>
+              </div>
+              <div class="custom-select-wrapper">
+                  <label for="chapterSelectNative" class="custom-select-label"><i class="fas fa-file-alt"></i>अध्याय चुनें:</label>
+                  <div class="custom-select-trigger disabled" data-target="chapterSelectNative" tabindex="0"><span>--अध्याय--</span> <i class="fas fa-chevron-down"></i></div>
+                  <select id="chapterSelectNative" class="hidden"><option value="">--अध्याय--</option></select>
+                  <div class="custom-options"></div>
+              </div>
+              <div id="outputContainer" class="initial"><p>📚 अपनी पसंदीदा पुस्तक और अध्याय खोजें! 📚</p></div>
+              <div id="geminiResponseArea" style="display: none;"></div>
+          </div>
+
+          <div id="developerModeArea" style="display:none;">
+              <h3 class="text-xl font-semibold mb-3">Developer Mode: PDF Links</h3>
+              <p class="text-sm mb-3">Yahaan aap chune gaye subject ke sabhi chapters aur unke PDF links dekh sakte hain.</p>
+              <div class="custom-select-wrapper">
+                  <label for="devClassSelectNative" class="custom-select-label"><i class="fas fa-graduation-cap"></i>कक्षा चुनें:</label>
+                  <div class="custom-select-trigger" data-target="devClassSelectNative" tabindex="0"><span>--कक्षा--</span> <i class="fas fa-chevron-down"></i></div>
+                  <select id="devClassSelectNative" class="hidden"><option value="">--कक्षा--</option></select>
+                  <div class="custom-options"></div>
+              </div>
+              <div class="custom-select-wrapper" id="devStreamGroupWrapper" style="display: none;">
+                  <label for="devStreamSelectNative" class="custom-select-label"><i class="fas fa-stream"></i>स्ट्रीम चुनें:</label>
+                  <div class="custom-select-trigger disabled" data-target="devStreamSelectNative" tabindex="0"><span>--स्ट्रीम--</span> <i class="fas fa-chevron-down"></i></div>
+                  <select id="devStreamSelectNative" class="hidden"><option value="">--स्ट्रीम--</option></select>
+                  <div class="custom-options"></div>
+              </div>
+              <div class="custom-select-wrapper">
+                  <label for="devSubjectSelectNative" class="custom-select-label"><i class="fas fa-journal-whills"></i>विषय चुनें:</label>
+                  <div class="custom-select-trigger disabled" data-target="devSubjectSelectNative" tabindex="0"><span>--विषय--</span> <i class="fas fa-chevron-down"></i></div>
+                  <select id="devSubjectSelectNative" class="hidden"><option value="">--विषय--</option></select>
+                  <div class="custom-options"></div>
+              </div>
+              <div id="developerLinkListContainer">
+                  <p class="text-center p-4">Kripya upar se class aur subject chunein.</p>
+              </div>
+               <button id="devLogoutButton" class="modal-button primary w-full mt-4">Developer Logout</button>
+          </div>
+      </div>
+  </div>
+
+   <div id="comingSoonModal" class="modal">
+      <div class="modal-content">
+          <h3><i class="fas fa-tools mr-2"></i>Feature Coming Soon!</h3>
+          <p>यह सुविधा अभी निर्माणाधीन है। जल्द ही उपलब्ध होगी!</p>
+          <button class="modal-button primary modal-close">ठीक है</button>
+      </div>
+  </div>
+  <div id="devFamilyModal" class="modal">
+      <div class="modal-content">
+          <h3><i class="fas fa-users-cog mr-2"></i>Developer Family</h3>
+          <p>Kya aap developer family ka hissa hain ya banna chahte hain?</p>
+          <button id="alreadyMemberBtn" class="modal-button primary w-full mb-2">I'm already a member</button>
+          <button id="requestMembershipBtn" class="modal-button secondary w-full">Request to become a member</button>
+          <button class="modal-button secondary modal-close mt-3 w-full">Cancel</button>
+      </div>
+  </div>
+  <div id="developerLoginModal" class="modal">
+      <div class="modal-content">
+          <div id="devLoginStep1">
+              <h3 class="mb-1"><i class="fas fa-envelope mr-2"></i>Developer Login - Step 1</h3>
+              <p class="text-sm mb-3">Apna developer email ID enter karein.</p>
+              <input type="email" id="devEmailInput" class="modal-input" placeholder="bkdev@studydost.ai">
+              <div id="devLoginError1" class="modal-error" style="display:none;"></div>
+              <button id="devLoginNextBtn" class="modal-button primary w-full">Next <i class="fas fa-arrow-right ml-1"></i></button>
+          </div>
+          <div id="devLoginStep2" style="display:none;">
+              <h3 class="mb-1"><i class="fas fa-lock mr-2"></i>Developer Login - Step 2</h3>
+              <p class="text-sm mb-3">Password enter karein for <strong id="devLoginEmailDisplay" class="font-semibold"></strong>.</p>
+              <input type="password" id="devPasswordInput" class="modal-input" placeholder="Password">
+              <div id="devLoginError2" class="modal-error" style="display:none;"></div>
+              <button id="devLoginSubmitBtn" class="modal-button primary w-full">Login <i class="fas fa-sign-in-alt ml-1"></i></button>
+          </div>
+           <button class="modal-button secondary modal-close mt-3 w-full">Cancel</button>
+      </div>
+  </div>
+
+   <div id="searchResultsModal" class="modal">
+       <div class="modal-content">
+           <div class="flex justify-between items-center mb-4">
+               <h3 class="text-lg font-semibold">खोज परिणाम</h3>
+               <button class="modal-close icon-button text-xl" aria-label="Close search results">×</button>
+           </div>
+           <div id="searchResultsContainer">
+               <p class="text-center text-gray-500">खोजने के लिए कुछ टाइप करें...</p>
+           </div>
+       </div>
+   </div>
+
+
+ <script>
+      // Firebase Configuration
+      const firebaseConfig = {
+          apiKey: "AIzaSyDheUzKfth230YoBHHh39fY_Hrkr7EZbzA", // Badal's provided key
+          authDomain: "study-dost-e796c.firebaseapp.com",
+          projectId: "study-dost-e796c",
+          storageBucket: "study-dost-e796c.firebasestorage.app",
+          messagingSenderId: "935777382208",
+          appId: "1:935777382208:web:3b5f4acc32c183e4c794a5",
+          measurementId: "G-DVCCJ7RM4C"
+      };
+
+      // Initialize Firebase
+      let db; // Declare db globally
+      try {
+          firebase.initializeApp(firebaseConfig);
+          db = firebase.firestore(); // Initialize Firestore
+      } catch (e) {
+          console.error("Firebase initialization error:", e);
+          document.body.innerHTML = '<div style="text-align: center; padding: 50px; font-family: Poppins, sans-serif;"><h1>App Initialization Error</h1><p>Could not connect to backend services. Please try again later.</p></div>';
+      }
+      
+      const auth = firebase.auth();
+
+      // Global state for syllabus data
+      let ncertSyllabusData = {};
+
+      // DOM Elements
+      const body = document.body;
+      const wipeOverlay = document.querySelector('.wipe-overlay');
+      const darkModeToggle = document.getElementById('darkModeToggle');
+      const homeButton = document.getElementById('homeButton');
+      const loginButton = document.getElementById('loginButton');
+      const burnPageButton = document.getElementById('burnPageButton');
+      const burnOverlay = document.getElementById('burnOverlay');
+      const menuButton = document.getElementById('menuButton');
+      const drawerMenu = document.getElementById('drawerMenu');
+      const drawerMenuOverlay = document.getElementById('drawerMenuOverlay');
+      const mainContentArea = document.getElementById('mainContentArea');
+      const developerModeArea = document.getElementById('developerModeArea');
+      const comingSoonModal = document.getElementById('comingSoonModal');
+      const devFamilyModal = document.getElementById('devFamilyModal');
+      const developerLoginModal = document.getElementById('developerLoginModal');
+      const modalCloses = document.querySelectorAll('.modal-close');
+      const devLoginStep1 = document.getElementById('devLoginStep1');
+      const devLoginStep2 = document.getElementById('devLoginStep2');
+      const devEmailInput = document.getElementById('devEmailInput');
+      const devPasswordInput = document.getElementById('devPasswordInput');
+      const devLoginEmailDisplay = document.getElementById('devLoginEmailDisplay');
+      const devLoginNextBtn = document.getElementById('devLoginNextBtn');
+      const devLoginSubmitBtn = document.getElementById('devLoginSubmitBtn');
+      const devLoginError1 = document.getElementById('devLoginError1');
+      const devLoginError2 = document.getElementById('devLoginError2');
+      const classSelectNative = document.getElementById('classSelectNative');
+      const streamGroupWrapper = document.getElementById('streamGroupWrapper');
+      const streamSelectNative = document.getElementById('streamSelectNative');
+      const subjectSelectNative = document.getElementById('subjectSelectNative');
+      const chapterSelectNative = document.getElementById('chapterSelectNative');
+      const outputContainer = document.getElementById('outputContainer');
+      const geminiResponseArea = document.getElementById('geminiResponseArea');
+      const devClassSelectNative = document.getElementById('devClassSelectNative');
+      const devStreamGroupWrapper = document.getElementById('devStreamGroupWrapper');
+      const devStreamSelectNative = document.getElementById('devStreamSelectNative');
+      const devSubjectSelectNative = document.getElementById('devSubjectSelectNative');
+      const developerLinkListContainer = document.getElementById('developerLinkListContainer');
+      const devLogoutButton = document.getElementById('devLogoutButton');
+      const searchInput = document.getElementById('searchInput'); // Search input element
+      const searchResultsModal = document.getElementById('searchResultsModal'); // Search results modal
+      const searchResultsContainer = document.getElementById('searchResultsContainer'); // Container for search results
+
+
+      let currentSelectedClass = "", currentSelectedStream = "", currentSelectedSubject = "", currentSelectedChapter = "";
+      let devSelectedClass = "", devSelectedStream = "", devSelectedSubject = "";
+      
+      const GEMINI_API_KEY = "AIzaSyAppNagY3gsWjU9CqnqvJ66jjIDHrLfoeU"; // Badal's original key
+
+
+      // --- Utility Functions ---
+      function showModal(modalElement) { modalElement.classList.add('active'); }
+      function hideModal(modalElement) { modalElement.classList.remove('active'); }
+      modalCloses.forEach(btn => btn.addEventListener('click', () => hideModal(btn.closest('.modal'))));
+
+      // --- Dark Mode ---
+      function applyDarkModePreference() {
+          const isDarkMode = localStorage.getItem('darkModeStudyDost') === 'true';
+          body.classList.toggle('dark-mode', isDarkMode);
+          body.classList.toggle('light-mode', !isDarkMode);
+          darkModeToggle.innerHTML = isDarkMode ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+          // Update devLoginEmailDisplay color based on mode
+          const devEmailStrongTag = document.getElementById('devLoginEmailDisplay');
+          if (devEmailStrongTag) {
+               if (isDarkMode) {
+                   devEmailStrongTag.classList.remove('text-indigo-600');
+                   devEmailStrongTag.classList.add('text-amber-500');
+               } else {
+                   devEmailStrongTag.classList.remove('text-amber-500');
+                   devEmailStrongTag.classList.add('text-indigo-600');
+               }
+          }
+      }
+      darkModeToggle.addEventListener('click', () => {
+          const isCurrentlyDark = body.classList.contains('dark-mode');
+          wipeOverlay.classList.remove('to-light', 'to-dark');
+          wipeOverlay.classList.add(isCurrentlyDark ? 'to-light' : 'to-dark');
+          wipeOverlay.style.transformOrigin = 'left';
+          wipeOverlay.classList.add('active');
+          setTimeout(() => {
+              localStorage.setItem('darkModeStudyDost', !isCurrentlyDark);
+              applyDarkModePreference();
+              wipeOverlay.style.transformOrigin = 'right';
+              wipeOverlay.classList.remove('active');
+          }, 500);
+      });
+
+      // --- Drawer Menu & Home Button ---
+      homeButton.addEventListener('click', () => location.reload()); 
+
+      function toggleDrawer(open) {
+          drawerMenu.classList.toggle('open', open);
+          drawerMenuOverlay.classList.toggle('open', open);
+      }
+      menuButton.addEventListener('click', () => toggleDrawer(true));
+      drawerMenuOverlay.addEventListener('click', () => toggleDrawer(false));
+      
+      document.getElementById('drawerChooseClass').addEventListener('click', () => {
+          toggleDrawer(false); 
+          const classSelectTrigger = classSelectNative.closest('.custom-select-wrapper')?.querySelector('.custom-select-trigger');
+          if (classSelectTrigger) {
+              classSelectTrigger.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              setTimeout(() => {
+                  if (!classSelectTrigger.classList.contains('disabled') && !classSelectTrigger.classList.contains('open')) {
+                       classSelectTrigger.click();
+                  }
+              }, 300); 
+          }
+      });
+      document.getElementById('drawerDevFamily').addEventListener('click', () => {
+          toggleDrawer(false);
+          showModal(devFamilyModal);
+      });
+
+      // --- General Login & Burn Page ---
+      loginButton.addEventListener('click', () => showModal(comingSoonModal)); // Kept as is, can be changed for general user login later
+      burnPageButton.addEventListener('click', (event) => {
+          burnOverlay.innerHTML = '';
+          burnOverlay.style.display = 'block';
+          const rect = event.currentTarget.getBoundingClientRect();
+          const flame = document.createElement('div');
+          flame.classList.add('flame');
+          flame.style.left = `${event.clientX}px`;
+          flame.style.top = `${event.clientY}px`;
+          burnOverlay.appendChild(flame);
+          setTimeout(() => { burnOverlay.style.display = 'none'; location.reload(); }, 2400);
+      });
+
+
+      // --- Developer Family & Login ---
+      document.getElementById('alreadyMemberBtn').addEventListener('click', () => {
+          hideModal(devFamilyModal);
+          devLoginStep1.style.display = 'block'; devLoginStep2.style.display = 'none';
+          devEmailInput.value = ''; devPasswordInput.value = '';
+          devLoginError1.style.display = 'none'; devLoginError2.style.display = 'none';
+          showModal(developerLoginModal);
+      });
+      document.getElementById('requestMembershipBtn').addEventListener('click', () => {
+          // Badal: Ensure this link is correct or remove if not needed.
+          window.open('https://forms.gle/YOUR_GOOGLE_FORM_LINK_HERE', '_blank'); 
+          hideModal(devFamilyModal);
+      });
+      devLoginNextBtn.addEventListener('click', () => {
+          const email = devEmailInput.value.trim();
+          if (email.toLowerCase() === "bkdev@studydost.ai") { // Hardcoded developer email
+              devLoginEmailDisplay.textContent = email; // Display the email
+              applyDarkModePreference(); // Re-apply dark mode to ensure color is correct
+              devLoginStep1.style.display = 'none'; devLoginStep2.style.display = 'block';
+              devLoginError1.style.display = 'none'; devPasswordInput.focus();
+          } else {
+              devLoginError1.textContent = "Incorrect developer email."; devLoginError1.style.display = 'block';
+          }
+      });
+      devLoginSubmitBtn.addEventListener('click', () => {
+          const email = devEmailInput.value.trim();
+          const password = devPasswordInput.value;
+          devLoginError2.style.display = 'none';
+          devLoginSubmitBtn.innerHTML = '<div class="spinner mx-auto"></div>';
+          auth.signInWithEmailAndPassword(email, password)
+              .then(() => { /* Auth state change will handle UI */ })
+              .catch(error => {
+                  devLoginError2.textContent = "Login failed: " + error.message.replace("Firebase: ", ""); 
+                  devLoginError2.style.display = 'block';
+              })
+              .finally(() => {
+                  devLoginSubmitBtn.innerHTML = 'Login <i class="fas fa-sign-in-alt ml-1"></i>';
+              });
+      });
+      auth.onAuthStateChanged(user => {
+          if (user && user.email.toLowerCase() === "bkdev@studydost.ai") {
+              hideModal(developerLoginModal);
+              mainContentArea.style.display = 'none';
+              developerModeArea.style.display = 'block';
+              if (Object.keys(ncertSyllabusData).length > 0) {
+                  populateDeveloperDropdowns();
+              }
+          } else {
+              mainContentArea.style.display = 'block';
+              developerModeArea.style.display = 'none';
+              if (user) auth.signOut(); // Sign out non-developer users if they somehow get authenticated
+          }
+      });
+      if(devLogoutButton) { 
+          devLogoutButton.addEventListener('click', () => {
+              auth.signOut().then(() => {
+                  console.log("Developer logged out.");
+                  // Potentially reload or reset UI to non-developer state explicitly
+              }).catch(error => {
+                  console.error("Logout error:", error);
+              });
+          });
+      }
+
+
+      // --- Custom Select Logic (No changes needed here from original, assuming it works) ---
+      function setupAllCustomSelects() {
+          document.querySelectorAll('.custom-select-wrapper').forEach(wrapper => {
+              const nativeSelect = wrapper.querySelector('select');
+              if (!nativeSelect) return;
+              const trigger = wrapper.querySelector('.custom-select-trigger');
+              const optionsContainer = wrapper.querySelector('.custom-options');
+              const triggerSpan = trigger.querySelector('span');
+
+              function updateTriggerText() {
+                  const selectedOption = nativeSelect.options[nativeSelect.selectedIndex];
+                  triggerSpan.textContent = selectedOption ? selectedOption.textContent : (nativeSelect.options[0]?.textContent || '--Chunein--');
+              }
+
+              function populateCustomOptions() {
+                  optionsContainer.innerHTML = '';
+                  if (!nativeSelect.options || nativeSelect.options.length === 0) {
+                      updateTriggerText(); 
+                      return;
+                  }
+                  Array.from(nativeSelect.options).forEach(optionNode => {
+                      const customOption = document.createElement('div');
+                      customOption.classList.add('custom-option');
+                      customOption.textContent = optionNode.textContent;
+                      customOption.dataset.value = optionNode.value;
+                      if (optionNode.selected) customOption.classList.add('selected');
+                      if (!optionNode.value && optionNode.textContent.startsWith('--')) {
+                           customOption.style.opacity = '0.7';
+                      }
+                      customOption.addEventListener('click', (e) => {
+                          e.stopPropagation();
+                          if (nativeSelect.value !== optionNode.value) {
+                              nativeSelect.value = optionNode.value;
+                              nativeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                          }
+                          Array.from(optionsContainer.children).forEach(child => child.classList.remove('selected'));
+                          customOption.classList.add('selected');
+                          updateTriggerText();
+                          optionsContainer.classList.remove('open');
+                          trigger.classList.remove('open');
+                      });
+                      optionsContainer.appendChild(customOption);
+                  });
+                  updateTriggerText();
+              }
+              
+              trigger.addEventListener('click', (e) => {
+                  e.stopPropagation();
+                  if (trigger.classList.contains('disabled')) return;
+                  const currentlyOpen = optionsContainer.classList.contains('open');
+                  document.querySelectorAll('.custom-options.open').forEach(sel => { if (sel !== optionsContainer) sel.classList.remove('open'); });
+                  document.querySelectorAll('.custom-select-trigger.open').forEach(trg => { if (trg !== trigger) trg.classList.remove('open'); });
+                  optionsContainer.classList.toggle('open', !currentlyOpen);
+                  trigger.classList.toggle('open', !currentlyOpen);
+              });
+              trigger.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); trigger.click(); } });
+              
+              nativeSelect.addEventListener('select-updated', populateCustomOptions);
+              if (nativeSelect.options.length > 0) populateCustomOptions();
+              else updateTriggerText(); 
+          });
+      }
+      document.addEventListener('click', () => {
+          document.querySelectorAll('.custom-options.open').forEach(sel => sel.classList.remove('open'));
+          document.querySelectorAll('.custom-select-trigger.open').forEach(trg => trg.classList.remove('open'));
+      });
+
+      function resetCustomDropdown(nativeSelectEl, defaultText, disabled = true) {
+          if (!nativeSelectEl) return; 
+          nativeSelectEl.innerHTML = `<option value="">--${defaultText}--</option>`;
+          const wrapper = nativeSelectEl.closest('.custom-select-wrapper');
+          if (wrapper) {
+              const triggerSpan = wrapper.querySelector('.custom-select-trigger span');
+              if (triggerSpan) triggerSpan.textContent = `--${defaultText}--`;
+              const optionsContainer = wrapper.querySelector('.custom-options');
+              if (optionsContainer) optionsContainer.innerHTML = '';
+              const trigger = wrapper.querySelector('.custom-select-trigger');
+              if (trigger) {
+                  if (disabled) trigger.classList.add('disabled'); else trigger.classList.remove('disabled');
+              }
+          }
+          nativeSelectEl.dispatchEvent(new Event('select-updated'));
+      }
+
+      function populateNativeSelect(selectElement, dataObject, defaultOptionText, isEnabled = true) {
+          if (!selectElement) return; 
+          const dataKeys = dataObject ? Object.keys(dataObject) : [];
+          selectElement.innerHTML = `<option value="">--${defaultOptionText}--</option>`;
+          if (dataKeys.length > 0) {
+              dataKeys.forEach(key => {
+                  if (typeof key === 'string' && !key.includes("Config") && !key.includes("API")) {
+                      const option = document.createElement('option');
+                      option.value = key;
+                      option.textContent = key;
+                      selectElement.appendChild(option);
+                  }
+              });
+          }
+          selectElement.dispatchEvent(new Event('select-updated'));
+          const trigger = selectElement.closest('.custom-select-wrapper')?.querySelector('.custom-select-trigger');
+          if (trigger) {
+              if (isEnabled && dataKeys.length > 0) trigger.classList.remove('disabled');
+              else trigger.classList.add('disabled');
+          }
+      }
+
+      // --- Syllabus Logic (Main and Developer - No changes needed from original here) ---
+      function initializeMainSyllabusDropdowns() {
+          if (Object.keys(ncertSyllabusData).length === 0) {
+              console.warn("NCERT Syllabus data is empty. Cannot initialize main dropdowns.");
+              return;
+          }
+          populateNativeSelect(classSelectNative, ncertSyllabusData, 'कक्षा');
+          classSelectNative.addEventListener('change', handleMainClassChange);
+          streamSelectNative.addEventListener('change', handleMainStreamChange);
+          subjectSelectNative.addEventListener('change', handleMainSubjectChange);
+          chapterSelectNative.addEventListener('change', handleMainChapterChange);
+      }
+      function handleMainClassChange() {
+          currentSelectedClass = classSelectNative.value; currentSelectedStream = ""; currentSelectedSubject = ""; currentSelectedChapter = "";
+          resetCustomDropdown(streamSelectNative, 'स्ट्रीम'); resetCustomDropdown(subjectSelectNative, 'विषय'); resetCustomDropdown(chapterSelectNative, 'अध्याय');
+          outputContainer.innerHTML = '<p>🚀 आगे क्या पढ़ना है? चुनें! 🚀</p>'; outputContainer.className = 'initial';
+          geminiResponseArea.style.display = 'none'; geminiResponseArea.innerHTML = '';
+          const askContainer = document.getElementById('askGeminiContainer'); if(askContainer) askContainer.remove();
+          const geminiActions = document.getElementById('geminiActionsContainer'); if(geminiActions) geminiActions.remove();
+          streamGroupWrapper.style.display = 'none';
+          if (currentSelectedClass) {
+              const classData = ncertSyllabusData[currentSelectedClass];
+              if (!classData) { outputContainer.innerHTML = '<p>😟 इस कक्षा के लिए डेटा नहीं मिला। 😟</p>'; outputContainer.className = 'loading'; return; }
+              if (currentSelectedClass === "कक्षा 11" || currentSelectedClass === "कक्षा 12") {
+                  streamGroupWrapper.style.display = 'block';
+                  const streams = Object.keys(classData).filter(key => key !== "विषय");
+                  const streamDataObject = {}; streams.forEach(s => streamDataObject[s] = s);
+                  populateNativeSelect(streamSelectNative, streamDataObject, 'स्ट्रीम', streams.length > 0);
+              } else {
+                  populateNativeSelect(subjectSelectNative, classData["विषय"] || {}, 'विषय', Object.keys(classData["विषय"] || {}).length > 0);
+                  if (!classData["विषय"] || Object.keys(classData["विषय"]).length === 0) { outputContainer.innerHTML = '<p>😟 इस कक्षा के लिए कोई विषय उपलब्ध नहीं है। 😟</p>'; outputContainer.className = 'loading'; }
+              }
+          }
+      }
+      function handleMainStreamChange() {
+          currentSelectedStream = streamSelectNative.value; currentSelectedSubject = ""; currentSelectedChapter = "";
+          resetCustomDropdown(subjectSelectNative, 'विषय'); resetCustomDropdown(chapterSelectNative, 'अध्याय');
+          outputContainer.innerHTML = '<p>📖 अब अपना पसंदीदा विषय चुनें! 📖</p>'; outputContainer.className = 'initial';
+          geminiResponseArea.style.display = 'none'; geminiResponseArea.innerHTML = '';
+          const askContainer = document.getElementById('askGeminiContainer'); if(askContainer) askContainer.remove();
+          const geminiActions = document.getElementById('geminiActionsContainer'); if(geminiActions) geminiActions.remove();
+          if (currentSelectedStream && (currentSelectedClass === "कक्षा 11" || currentSelectedClass === "कक्षा 12")) {
+              const streamData = ncertSyllabusData[currentSelectedClass]?.[currentSelectedStream];
+              populateNativeSelect(subjectSelectNative, streamData || {}, 'विषय', Object.keys(streamData || {}).length > 0);
+              if (!streamData || Object.keys(streamData).length === 0) { outputContainer.innerHTML = '<p>😟 इस स्ट्रीम के लिए कोई विषय उपलब्ध नहीं है। 😟</p>'; outputContainer.className = 'loading';}
+          }
+      }
+      function handleMainSubjectChange() {
+          currentSelectedSubject = subjectSelectNative.value; currentSelectedChapter = "";
+          resetCustomDropdown(chapterSelectNative, 'अध्याय');
+          outputContainer.innerHTML = '<p>📄 कौन सा अध्याय पढ़ना है? चुनें! 📄</p>'; outputContainer.className = 'initial';
+          geminiResponseArea.style.display = 'none'; geminiResponseArea.innerHTML = '';
+          const askContainer = document.getElementById('askGeminiContainer'); if(askContainer) askContainer.remove();
+          const geminiActions = document.getElementById('geminiActionsContainer'); if(geminiActions) geminiActions.remove();
+          if (currentSelectedSubject) {
+              let chaptersData = {};
+              if (currentSelectedClass === "कक्षा 11" || currentSelectedClass === "कक्षा 12") chaptersData = ncertSyllabusData[currentSelectedClass]?.[currentSelectedStream]?.[currentSelectedSubject] || {};
+              else chaptersData = ncertSyllabusData[currentSelectedClass]?.["विषय"]?.[currentSelectedSubject] || {};
+
+              if (chaptersData.hasOwnProperty("संदेश")) {
+                  resetCustomDropdown(chapterSelectNative, chaptersData["संदेश"], true);
+                  outputContainer.innerHTML = `<p>🚧 ${chaptersData["संदेश"]} 🚧</p>`; outputContainer.className = 'loading';
+              } else {
+                  populateNativeSelect(chapterSelectNative, chaptersData, 'अध्याय', Object.keys(chaptersData).length > 0);
+                  if (Object.keys(chaptersData).length === 0) {
+                      resetCustomDropdown(chapterSelectNative, 'कोई अध्याय नहीं', true);
+                      outputContainer.innerHTML = '<p>😟 इस विषय के लिए कोई अध्याय नहीं मिला। 😟</p>'; outputContainer.className = 'loading';
+                  }
+              }
+          }
+      }
+      function handleMainChapterChange() {
+          currentSelectedChapter = chapterSelectNative.value;
+          outputContainer.className = 'initial'; geminiResponseArea.style.display = 'none'; geminiResponseArea.innerHTML = '';
+          let pdfUrl = "";
+          if (currentSelectedClass && currentSelectedSubject && currentSelectedChapter) {
+               if (currentSelectedClass === "कक्षा 11" || currentSelectedClass === "कक्षा 12") pdfUrl = ncertSyllabusData[currentSelectedClass]?.[currentSelectedStream]?.[currentSelectedSubject]?.[currentSelectedChapter];
+               else pdfUrl = ncertSyllabusData[currentSelectedClass]?.["विषय"]?.[currentSelectedSubject]?.[currentSelectedChapter];
+          }
+          let outputHTML = ""; let showGeminiOptions = false;
+          if (currentSelectedChapter) {
+              if (currentSelectedChapter === "संदेश" || (pdfUrl && typeof pdfUrl === 'string' && pdfUrl.toLowerCase().includes("coming soon"))) {
+                  const message = (pdfUrl && typeof pdfUrl === 'string' && pdfUrl.toLowerCase().includes("coming soon")) ? pdfUrl : currentSelectedChapter;
+                  outputHTML = `<p>🚧 ${message} 🚧</p>`; outputContainer.className = 'loading';
+              } else if (!pdfUrl || pdfUrl === "link" || pdfUrl === "YOUR_PDF_LINK_HERE_OR_PLACEHOLDER") { // Added placeholder check
+                   outputHTML = `<p>✨ आपने चुना है: <strong>${currentSelectedChapter}</strong> ✨</p><p class="pdf-info text-sm">(PDF लिंक जल्द ही सक्रिय होगा!)</p>`;
+                   outputContainer.className = 'success'; showGeminiOptions = true; 
+              } else if (currentSelectedChapter === "कोई अध्याय उपलब्ध नहीं") { // Removed !pdfUrl from here
+                   outputHTML = `<p>😟 अध्याय का लिंक उपलब्ध नहीं। 😟</p>`; outputContainer.className = 'loading';
+              } else { 
+                  outputHTML = `<p>✨ आपने चुना है: <strong>${currentSelectedChapter}</strong> ✨</p>
+                                 <a href="${pdfUrl}" target="_blank" class="pdf-link-button"><i class="fas fa-file-pdf"></i> PDF खोलें</a>`;
+                  outputContainer.className = 'success'; showGeminiOptions = true;
+              }
+          } else outputHTML = '<p>📄 कौन सा अध्याय पढ़ना है? चुनें! 📄</p>';
+          
+          const oldGeminiContainer = document.getElementById('geminiActionsContainer'); if(oldGeminiContainer) oldGeminiContainer.remove();
+          const oldAskGeminiContainer = document.getElementById('askGeminiContainer'); if(oldAskGeminiContainer) oldAskGeminiContainer.remove();
+          
+          if (showGeminiOptions) {
+              const geminiContainerHTML = `
+                  <div id="geminiActionsContainer">
+                      <button id="summarizeChapterBtn" class="gemini-action-button"><i class="fas fa-lightbulb"></i> ✨ सारांश</button>
+                      <button id="keyConceptsBtn" class="gemini-action-button"><i class="fas fa-key"></i> ✨ मुख्य अवधारणाएँ</button>
+                      <button id="askQuestionBtn" class="gemini-action-button"><i class="fas fa-question-circle"></i> ✨ प्रश्न पूछें</button>
+                      <button id="practiceQuestionsBtn" class="gemini-action-button"><i class="fas fa-tasks"></i> ✨ अभ्यास प्रश्न</button>
+                      <button id="eli5Btn" class="gemini-action-button"><i class="fas fa-child"></i> ✨ आसान भाषा में</button>
+                  </div>
+                  <div id="askGeminiContainer" class="w-full">
+                      <textarea id="geminiQuestionInput" rows="3" placeholder="इस अध्याय से संबंधित अपना प्रश्न यहाँ लिखें..."></textarea>
+                      <button id="submitGeminiQuestionBtn" class="gemini-action-button w-full"><i class="fas fa-paper-plane"></i> भेजें</button>
+                  </div>`;
+              const targetElement = document.getElementById('geminiResponseArea') || outputContainer;
+              targetElement.insertAdjacentHTML('beforebegin', geminiContainerHTML);
+              
+              document.getElementById('summarizeChapterBtn').addEventListener('click', () => callGeminiAPI('summary'));
+              document.getElementById('keyConceptsBtn').addEventListener('click', () => callGeminiAPI('concepts'));
+              document.getElementById('practiceQuestionsBtn').addEventListener('click', () => callGeminiAPI('practice_questions'));
+              document.getElementById('eli5Btn').addEventListener('click', () => callGeminiAPI('eli5'));
+
+              const askQuestionBtn = document.getElementById('askQuestionBtn');
+              const askGeminiContainer = document.getElementById('askGeminiContainer');
+              askQuestionBtn.addEventListener('click', () => askGeminiContainer.classList.toggle('visible'));
+              document.getElementById('submitGeminiQuestionBtn').addEventListener('click', () => {
+                  const question = document.getElementById('geminiQuestionInput').value;
+                  if (question.trim()) {
+                      callGeminiAPI('custom_question', question);
+                      document.getElementById('geminiQuestionInput').value = '';
+                      askGeminiContainer.classList.remove('visible');
+                  } else {
+                      geminiResponseArea.textContent = "कृपया पूछने के लिए एक प्रश्न लिखें।";
+                      geminiResponseArea.style.display = 'block'; geminiResponseArea.className = 'loading';
+                  }
+              });
+          }
+          outputContainer.innerHTML = outputHTML;
+      }
+
+      // Developer Mode Syllabus Handlers (No changes needed from original here)
+      function populateDeveloperDropdowns() {
+          if (Object.keys(ncertSyllabusData).length === 0) return;
+          populateNativeSelect(devClassSelectNative, ncertSyllabusData, 'कक्षा');
+          devClassSelectNative.addEventListener('change', handleDevClassChange);
+          devStreamSelectNative.addEventListener('change', handleDevStreamChange);
+          devSubjectSelectNative.addEventListener('change', handleDevSubjectChange);
+      }
+      function handleDevClassChange() {
+          devSelectedClass = devClassSelectNative.value; devSelectedStream = ""; devSelectedSubject = "";
+          resetCustomDropdown(devStreamSelectNative, 'स्ट्रीम'); resetCustomDropdown(devSubjectSelectNative, 'विषय');
+          developerLinkListContainer.innerHTML = '<p class="text-center p-4">Kripya stream (yadi laagu ho) aur subject chunein.</p>';
+          devStreamGroupWrapper.style.display = 'none';
+          if (devSelectedClass) {
+              const classData = ncertSyllabusData[devSelectedClass];
+              if (!classData) { developerLinkListContainer.innerHTML = '<p>Is kaksha ke liye data nahi mila.</p>'; return; }
+              if (devSelectedClass === "कक्षा 11" || devSelectedClass === "कक्षा 12") {
+                  devStreamGroupWrapper.style.display = 'block';
+                  const streams = Object.keys(classData).filter(key => key !== "विषय");
+                  const streamDataObject = {}; streams.forEach(s => streamDataObject[s] = s);
+                  populateNativeSelect(devStreamSelectNative, streamDataObject, 'स्ट्रीम', streams.length > 0);
+              } else {
+                  populateNativeSelect(devSubjectSelectNative, classData["विषय"] || {}, 'विषय', Object.keys(classData["विषय"] || {}).length > 0);
+                   if (!classData["विषय"] || Object.keys(classData["विषय"]).length === 0) { developerLinkListContainer.innerHTML = '<p class="text-center p-4">Is kaksha ke liye koi vishay uplabdh nahi hai.</p>'; }
+              }
+          }
+      }
+      function handleDevStreamChange() {
+          devSelectedStream = devStreamSelectNative.value; devSelectedSubject = "";
+          resetCustomDropdown(devSubjectSelectNative, 'विषय');
+          developerLinkListContainer.innerHTML = '<p class="text-center p-4">Kripya subject chunein.</p>';
+          if (devSelectedStream && (devSelectedClass === "कक्षा 11" || devSelectedClass === "कक्षा 12")) {
+              const streamData = ncertSyllabusData[devSelectedClass]?.[devSelectedStream];
+              populateNativeSelect(devSubjectSelectNative, streamData || {}, 'विषय', Object.keys(streamData || {}).length > 0);
+               if (!streamData || Object.keys(streamData).length === 0) { developerLinkListContainer.innerHTML = '<p class="text-center p-4">Is stream ke liye koi vishay uplabdh nahi hai.</p>';}
+          }
+      }
+      function handleDevSubjectChange() { devSelectedSubject = devSubjectSelectNative.value; displayDeveloperLinks(); }
+      function displayDeveloperLinks() {
+          developerLinkListContainer.innerHTML = '';
+          if (!devSelectedClass || !devSelectedSubject) { developerLinkListContainer.innerHTML = '<p>Class aur subject chunein.</p>'; return; }
+          let chaptersData = {};
+          if (devSelectedClass === "कक्षा 11" || devSelectedClass === "कक्षा 12") {
+              if (!devSelectedStream && Object.keys(ncertSyllabusData[devSelectedClass] || {}).filter(k => k !== "विषय").length > 0) { developerLinkListContainer.innerHTML = '<p>Stream chunein.</p>'; return; }
+              chaptersData = ncertSyllabusData[devSelectedClass]?.[devSelectedStream]?.[devSelectedSubject] || {};
+          } else {
+              chaptersData = ncertSyllabusData[devSelectedClass]?.["विषय"]?.[devSelectedSubject] || {};
+          }
+          if (chaptersData.hasOwnProperty("संदेश")) { developerLinkListContainer.innerHTML = `<p class="text-center p-4 text-yellow-600 dark:text-yellow-400">🚧 ${chaptersData["संदेश"]} 🚧</p>`; }
+          else if (Object.keys(chaptersData).length > 0) {
+              const ul = document.createElement('ul');
+              Object.entries(chaptersData).forEach(([chapterName, link]) => {
+                  const li = document.createElement('li'); li.classList.add('developer-link-item');
+                  const chapterSpan = document.createElement('span');
+                  let linkDisplay = "(Link Nahi Hai)";
+                  if (link && typeof link === 'string') {
+                      if (link.toLowerCase() === "link" || link === "YOUR_PDF_LINK_HERE_OR_PLACEHOLDER") linkDisplay = "(Placeholder Link)";
+                      else if (link.toLowerCase().includes("coming soon")) linkDisplay = "(Jald Hi Aa Raha Hai)";
+                      else linkDisplay = link;
+                  }
+                  chapterSpan.textContent = `${chapterName}: ${linkDisplay}`;
+
+                  const openBtn = document.createElement('a');
+                  openBtn.target = "_blank"; openBtn.classList.add('modal-button', 'primary', 'open-link-btn');
+                  openBtn.innerHTML = '<i class="fas fa-external-link-alt"></i>';
+                  if (link && typeof link === 'string' && link !== "link" && link !== "YOUR_PDF_LINK_HERE_OR_PLACEHOLDER" && !link.toLowerCase().includes("coming soon") && (link.startsWith("http://") || link.startsWith("https://"))) {
+                       openBtn.href = link;
+                  } else {
+                       openBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                       openBtn.onclick = (e) => e.preventDefault();
+                  }
+                  li.appendChild(chapterSpan); li.appendChild(openBtn); ul.appendChild(li);
+              });
+              developerLinkListContainer.appendChild(ul);
+          } else developerLinkListContainer.innerHTML = '<p class="text-center p-4">Is subject ke liye koi chapters/links uplabdh nahi hain.</p>';
+      }
+
+      // --- Gemini API Call (No changes needed from original here) ---
+      async function callGeminiAPI(type, customQuestion = "") {
+          if (!currentSelectedClass || !currentSelectedSubject || !currentSelectedChapter) {
+              geminiResponseArea.textContent = "कृपया पहले कक्षा, विषय और अध्याय चुनें।";
+              geminiResponseArea.style.display = 'block'; geminiResponseArea.className = 'loading'; return;
+          }
+          geminiResponseArea.style.display = 'block'; geminiResponseArea.className = 'loading-gemini';
+          geminiResponseArea.innerHTML = '<div class="spinner"></div><p>कृप्या प्रतीक्षा करें, AI दोस्त जानकारी ला रहा है...</p>';
+          let promptText = "";
+          const context = `NCERT पाठ्यक्रम के अंतर्गत, कक्षा ${currentSelectedClass} ${currentSelectedStream ? `(${currentSelectedStream})` : ''} के विषय "${currentSelectedSubject}" के अध्याय "${currentSelectedChapter}" के संदर्भ में, `;
+          
+          if (type === 'summary') promptText = context + `एक विस्तृत और समझने योग्य सारांश हिंदी में प्रदान करें।`;
+          else if (type === 'concepts') promptText = context + `मुख्य अवधारणाओं (key concepts) को हिंदी में विस्तार से सूचीबद्ध करें।`;
+          else if (type === 'custom_question' && customQuestion) promptText = context + `इस प्रश्न का उत्तर दें: "${customQuestion}"।`;
+          else if (type === 'practice_questions') promptText = context + `इस अध्याय से संबंधित 5 बहुविकल्पीय अभ्यास प्रश्न (MCQs) उनके सही उत्तरों के साथ हिंदी में बनाएं। प्रश्न और उत्तर स्पष्ट रूप से अलग-अलग दिखाएं।`;
+          else if (type === 'eli5') promptText = context + `इस पूरे अध्याय को ऐसे समझाएं जैसे मैं 5 साल का बच्चा हूँ, सरल हिंदी भाषा में और छोटे-छोटे वाक्यों का प्रयोग करें।`;
+          else { geminiResponseArea.textContent = "अज्ञात अनुरोध प्रकार।"; geminiResponseArea.className = 'loading'; return; }
+
+          const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
+          const payload = { contents: [{ role: "user", parts: [{ text: promptText }] }] };
+          try {
+              const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+              geminiResponseArea.classList.remove('loading-gemini');
+              if (!response.ok) {
+                  const errorData = await response.json().catch(() => ({ error: { message: "Unknown API error, non-JSON response."} }));
+                  console.error("Gemini API Error Response:", errorData);
+                  geminiResponseArea.textContent = `API Error: ${response.status}. ${errorData?.error?.message || 'Unknown API error.'}`;
+                  geminiResponseArea.className = 'loading'; return;
+              }
+              const result = await response.json();
+              if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+                  geminiResponseArea.textContent = result.candidates[0].content.parts[0].text;
+                  geminiResponseArea.className = '';
+              } else {
+                  console.warn("Gemini API unexpected response structure:", result);
+                  geminiResponseArea.textContent = 'क्षमा करें, AI दोस्त से कोई संतोषजनक जवाब नहीं मिला।';
+                  if (result.promptFeedback && result.promptFeedback.blockReason) {
+                       geminiResponseArea.textContent += ` ( कारण: ${result.promptFeedback.blockReason} )`;
+                  }
+                  geminiResponseArea.className = 'loading';
+              }
+          } catch (error) {
+              console.error("Gemini API Call Fetch Error:", error);
+              geminiResponseArea.classList.remove('loading-gemini');
+              geminiResponseArea.textContent = `क्षमा करें, जानकारी प्राप्त करने में एक त्रुटि हुई। (${error.message})`;
+              geminiResponseArea.className = 'loading';
+          }
+      }
+      
+      // --- Fetch NCERT Data from Firestore (UPDATED) ---
+      async function fetchNcertData() {
+          outputContainer.innerHTML = '<div class="spinner"></div><p>सिलेबस क्लाउड से लोड हो रहा है...</p>';
+          outputContainer.className = 'loading';
+          try {
+              if (!db) { // Check if db is initialized
+                  throw new Error("Firestore is not initialized. Firebase might have failed to load.");
+              }
+              const docRef = db.collection("syllabus_data").doc("main_syllabus");
+              const docSnap = await docRef.get();
+
+              if (docSnap.exists) {
+                  const data = docSnap.data();
+                  if (data.syllabus_json_string) {
+                      ncertSyllabusData = JSON.parse(data.syllabus_json_string);
+                      console.log("Syllabus data loaded successfully from Firestore:", ncertSyllabusData);
+                      
+                      if (Object.keys(ncertSyllabusData).length === 0) {
+                          throw new Error("Firestore से प्राप्त JSON डेटा खाली है या अपेक्षित फॉर्मेट में नहीं है।");
+                      }
+                      
+                      initializeMainSyllabusDropdowns();
+                      if (auth.currentUser && auth.currentUser.email.toLowerCase() === "bkdev@studydost.ai") {
+                          populateDeveloperDropdowns();
+                      }
+                      setupAllCustomSelects();
+                      outputContainer.innerHTML = '<p>📚 अपनी पसंदीदा पुस्तक और अध्याय खोजें! 📚</p>';
+                      outputContainer.className = 'initial';
+
+                  } else {
+                      throw new Error("'syllabus_json_string' फ़ील्ड Firestore डॉक्यूमेंट में नहीं मिली।");
+                  }
+              } else {
+                  throw new Error("'main_syllabus' डॉक्यूमेंट Firestore के 'syllabus_data' कलेक्शन में नहीं मिला। कृपया सुनिश्चित करें कि यह सही ढंग से अपलोड किया गया है।");
+              }
+          } catch (error) {
+              console.error("Firestore से NCERT सिलेबस डेटा लाने में त्रुटि:", error);
+              outputContainer.innerHTML = `<p class="text-red-500 font-semibold">😟 सिलेबस डेटा लोड करने में समस्या हुई। (${error.message})</p><p class="text-sm"> सुनिश्चित करें कि Firestore में डेटा सही तरीके से डाला गया है और सुरक्षा नियम सही हैं।</p>`;
+              outputContainer.className = 'loading';
+              [classSelectNative, streamSelectNative, subjectSelectNative, chapterSelectNative,
+               devClassSelectNative, devStreamSelectNative, devSubjectSelectNative].forEach(sel => {
+                  if(sel) resetCustomDropdown(sel, 'डेटा नहीं', true);
+               });
+          }
+      }
+
+      // --- Search Functionality (NEW) ---
+      function performSearch(query) {
+          searchResultsContainer.innerHTML = ''; // Clear previous results
+          if (!query) {
+              searchResultsContainer.innerHTML = '<p class="text-center text-gray-500">खोजने के लिए कुछ टाइप करें...</p>';
+              return;
+          }
+          if (Object.keys(ncertSyllabusData).length === 0) {
+              searchResultsContainer.innerHTML = '<p class="text-center text-red-500">सिलेबस डेटा अभी लोड नहीं हुआ है। कृपया प्रतीक्षा करें और पुनः प्रयास करें।</p>';
+              return;
+          }
+
+          const lowerCaseQuery = query.toLowerCase();
+          let resultsFound = [];
+
+          for (const className in ncertSyllabusData) {
+              const classData = ncertSyllabusData[className];
+              // Case 1: Direct subjects under class (e.g., Class 9, 10)
+              if (classData["विषय"]) {
+                  for (const subjectName in classData["विषय"]) {
+                      const subjectData = classData["विषय"][subjectName];
+                      for (const chapterName in subjectData) {
+                          if (chapterName === "संदेश") continue;
+                          if (className.toLowerCase().includes(lowerCaseQuery) || 
+                              subjectName.toLowerCase().includes(lowerCaseQuery) || 
+                              chapterName.toLowerCase().includes(lowerCaseQuery)) {
+                              resultsFound.push({
+                                  className,
+                                  subjectName,
+                                  chapterName,
+                                  pdfLink: subjectData[chapterName]
+                              });
+                          }
+                      }
+                  }
+              } else { // Case 2: Streams under class (e.g., Class 11, 12)
+                  for (const streamName in classData) {
+                      if (streamName === "संदेश") continue;
+                      const streamData = classData[streamName];
+                      for (const subjectName in streamData) {
+                          if (subjectName === "संदेश") continue;
+                          const subjectData = streamData[subjectName];
+                          for (const chapterName in subjectData) {
+                              if (chapterName === "संदेश") continue;
+                              if (className.toLowerCase().includes(lowerCaseQuery) ||
+                                  streamName.toLowerCase().includes(lowerCaseQuery) ||
+                                  subjectName.toLowerCase().includes(lowerCaseQuery) ||
+                                  chapterName.toLowerCase().includes(lowerCaseQuery)) {
+                                  resultsFound.push({
+                                      className,
+                                      streamName,
+                                      subjectName,
+                                      chapterName,
+                                      pdfLink: subjectData[chapterName]
+                                  });
+                              }
+                          }
+                      }
+                  }
+              }
+          }
+
+          if (resultsFound.length > 0) {
+              resultsFound.forEach(res => {
+                  const itemDiv = document.createElement('div');
+                  itemDiv.classList.add('search-result-item');
+                  
+                  const title = document.createElement('h4');
+                  title.textContent = res.chapterName;
+                  
+                  const context = document.createElement('p');
+                  context.textContent = `${res.className} ${res.streamName ? '(' + res.streamName + ')' : ''} - ${res.subjectName}`;
+                  
+                  itemDiv.appendChild(title);
+                  itemDiv.appendChild(context);
+
+                  if (res.pdfLink && typeof res.pdfLink === 'string' && (res.pdfLink.startsWith('http') || res.pdfLink.startsWith('www'))) {
+                      const link = document.createElement('a');
+                      link.href = res.pdfLink;
+                      link.target = '_blank';
+                      link.classList.add('pdf-link-search');
+                      link.innerHTML = 'PDF देखें <i class="fas fa-external-link-alt ml-1"></i>';
+                      itemDiv.appendChild(link);
+                      itemDiv.addEventListener('click', (e) => { 
+                          if (e.target.tagName !== 'A') { // Allow clicking on link directly
+                              window.open(res.pdfLink, '_blank');
+                          }
+                      });
+                  } else {
+                      const noLinkText = document.createElement('p');
+                      noLinkText.classList.add('text-xs');
+                      noLinkText.textContent = (res.pdfLink === "YOUR_PDF_LINK_HERE_OR_PLACEHOLDER" || res.pdfLink === "link") ? '(PDF जल्द उपलब्ध होगा)' : '(PDF लिंक उपलब्ध नहीं)';
+                      itemDiv.appendChild(noLinkText);
+                  }
+                  searchResultsContainer.appendChild(itemDiv);
+              });
+          } else {
+              searchResultsContainer.innerHTML = '<p class="text-center text-gray-500">कोई परिणाम नहीं मिला। 😟</p>';
+          }
+          showModal(searchResultsModal);
+      }
+
+      searchInput.addEventListener('keyup', (event) => {
+          if (event.key === "Enter") {
+              performSearch(searchInput.value.trim());
+          }
+      });
+      // Optional: search on input change with debounce
+      let searchTimeout;
+      searchInput.addEventListener('input', () => {
+          clearTimeout(searchTimeout);
+          searchTimeout = setTimeout(() => {
+              if(searchInput.value.trim().length > 2 || searchInput.value.trim().length === 0) { // Search if query > 2 chars or empty (to clear)
+                  performSearch(searchInput.value.trim());
+              }
+          }, 500); // Debounce time
+      });
+       // Close search modal if input is cleared and modal is open
+      searchInput.addEventListener('input', () => {
+           if (searchInput.value.trim() === '' && searchResultsModal.classList.contains('active')) {
+               searchResultsContainer.innerHTML = '<p class="text-center text-gray-500">खोजने के लिए कुछ टाइप करें...</p>';
+               // hideModal(searchResultsModal); // Or just clear results
+           }
+       });
+
+
+      // --- Initial Setup ---
+      document.addEventListener('DOMContentLoaded', () => {
+          applyDarkModePreference();
+          fetchNcertData(); // This will now fetch from Firestore
+          // setupAllCustomSelects(); // Called within fetchNcertData after data is loaded
+      });
+
+ </script>
+</body>
+</html>
